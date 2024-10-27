@@ -2,6 +2,7 @@ export type UserId = string;
 
 export interface Chat
 {
+    id: string;
     userId:UserId;
      name:string;
      message: string;
@@ -20,7 +21,7 @@ export abstract class Store{
     {
 
     }
-    addChat(userId:UserId, name:string, roomId: string, limit: number, offset: number)
+    addChat(userId:UserId,name:string, roomId: string, message: string)
     {
 
     }

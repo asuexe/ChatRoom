@@ -1,11 +1,18 @@
-import {server as WebSocketServer} from "websocket";
-import http  from 'http';
-
+import {connection, server as WebSocketServer} from "websocket";
+import http from 'http';
+import { SupportMesasge } from "./messages";
+import { IncomingMessages } from "./messages"
+import { UserManager } from "./UserManager";
+import { inMemoryStore } from "./Store/inMemoryStore";
 const server = http.createServer(function(request: any, response: any) {
     console.log((new Date()) + ' Received request for ' + request.url);
     response.writeHead(404);
     response.end();
 });
+
+const userManager = new UserManager();
+const store = new inMemoryStore();
+
 server.listen(8080, function() {
     console.log((new Date()) + ' Server is listening on port 8080');
 });
@@ -36,8 +43,7 @@ wsServer.on('request', function(request) {
         if (message.type === 'utf8') {
             try
             {
-                // MessageHandler(JSON.parse(message.utf8Data))
-
+                messageHandler(connection,JSON.parse(message.utf8Data));
             }
             catch(e)
             {
@@ -53,3 +59,26 @@ wsServer.on('request', function(request) {
     });
 });
 
+function messageHandler(ws: connection, message: IncomingMessages){
+    if(message.type == SupportMesasge.JoinRoom){
+        const payload = message.payload;
+        userManager.addUser(payload.name,payload.userId,payload.roomId,ws);
+
+    }
+    if(message.type === SupportMesasge.SendMessage)
+    {
+        const payload = message.payload;
+        const user  = userManager.getUser(payload.roomId, payload.userId)
+        if(!user){
+            console.error("user not found!");
+            return
+        }
+        store.addChat(payload.userId,user.name, payload.roomId, payload.message)
+        // TODO: broadCast Logic
+    }
+    if(message.type === SupportMesasge.UpvoteMessage)
+    {
+        const payload = message.payload;
+        store.Upvote(payload.userId, payload.roomId, payload.chatId)
+    }
+}
