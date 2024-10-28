@@ -1,10 +1,11 @@
+import { OutgoingMessage, SupportedMesasge as OutgoingSupportedMessage } from "./messages/OutgoingMessages";
 import {connection, server as WebSocketServer} from "websocket";
 import http from 'http';
-import { SupportMesasge } from "../src/messages/IncomingMessages";
-import { IncomingMessages } from "../src/messages/IncomingMessages"
 import { UserManager } from "./UserManager";
+import { IncomingMessage, SupportedMesasge } from "./messages/IncomingMessages";
+
 import { inMemoryStore } from "./Store/inMemoryStore";
-import { OutgoingMessages, SupportMesasge as OutgoingSupportedMessage } from "./messages/OutgoingMessages";
+
 const server = http.createServer(function(request: any, response: any) {
     console.log((new Date()) + ' Received request for ' + request.url);
     response.writeHead(404);
@@ -29,8 +30,10 @@ function originIsAllowed(origin: string) {
 }
 
 wsServer.on('request', function(request) {
-    if (!originIsAllowed(request.origin)) {
+    console.log("inside connect");
 
+    if (!originIsAllowed(request.origin)) {
+      // Make sure we only accept requests from an allowed origin
       request.reject();
       console.log((new Date()) + ' Connection from origin ' + request.origin + ' rejected.');
       return;
@@ -40,33 +43,24 @@ wsServer.on('request', function(request) {
     console.log((new Date()) + ' Connection accepted.');
     connection.on('message', function(message) {
 
-        //TODO: rate limitting logic here
+        // Todo add rate limitting logic here 
         if (message.type === 'utf8') {
-            try
-            {
-                messageHandler(connection,JSON.parse(message.utf8Data));
-            }
-            catch(e)
-            {
+            try {
+                messageHandler(connection, JSON.parse(message.utf8Data));
+            } catch(e) {
 
             }
-            // console.log('Received Message: ' + message.utf8Data);
-            // connection.sendUTF(message.utf8Data);
         }
-
-    });
-    connection.on('close', function(reasonCode, description) {
-        console.log((new Date()) + ' Peer ' + connection.remoteAddress + ' disconnected.');
     });
 });
 
-function messageHandler(ws: connection, message: IncomingMessages){
-    if(message.type == SupportMesasge.JoinRoom){
+function messageHandler(ws: connection, message: IncomingMessage){
+    if(message.type == SupportedMesasge.JoinRoom){
         const payload = message.payload;
         userManager.addUser(payload.name,payload.userId,payload.roomId,ws);
 
     }
-    if(message.type === SupportMesasge.SendMessage)
+    if(message.type === SupportedMesasge.SendMessage)
     {
         const payload = message.payload;
         const user  = userManager.getUser(payload.roomId, payload.userId)
@@ -74,37 +68,39 @@ function messageHandler(ws: connection, message: IncomingMessages){
             console.error("user not found!");
             return
         }
-        let chat = store.addChat(payload.userId,user.name, payload.roomId, payload.message)
-        // TODO: broadCast Logic
-        if(!chat){
+        let chat = store.addChat(payload.userId, user.name, payload.roomId, payload.message);
+        if (!chat) {
             return;
         }
-        const OutgoingPayload: OutgoingMessages = {
-            type: OutgoingSupportedMessage.Add_chat,
-            payload:{
+
+        const outgoingPayload: OutgoingMessage = {
+            type: OutgoingSupportedMessage.Addchat,
+            payload: {
                 chatId: chat.id,
-                roomId:payload.roomId,
+                roomId: payload.roomId,
                 message: payload.message,
-                name:user.name,
+                name: user.name,
                 upvotes: 0
-            }     
+            }
         }
-        userManager.broadcast(payload.roomId,payload.userId,OutgoingPayload)
+        userManager.broadcast(payload.roomId, payload.userId, outgoingPayload);
     }
 
-    if(message.type === SupportMesasge.UpvoteMessage)
+    if(message.type === SupportedMesasge.UpvoteMessage)
     {
         const payload = message.payload;
-        store.Upvote(payload.userId, payload.roomId, payload.chatId);
+        const chat = store.Upvote(payload.userId, payload.roomId, payload.chatId);
 
-        const OutgoingPayload: OutgoingMessages = {
-            type: OutgoingSupportedMessage.Update_chat,
+        const OutgoingPayload: OutgoingMessage = {
+            type: OutgoingSupportedMessage.Updatechat,
             payload:{
                 chatId: payload.chatId,
-                roomId:payload.roomId,
-                upvotes: 0
+                roomId: payload.roomId,
+                upvotes: chat?.upvotes.length
             }            
         }
+        
+        console.log("inside upvote 3")
         userManager.broadcast(payload.roomId,payload.userId,OutgoingPayload)
     }
 }

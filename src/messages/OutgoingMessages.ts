@@ -1,22 +1,20 @@
-export enum SupportMesasge{
-    Add_chat = "ADD_CHAT",
-    Update_chat = "UPDATE_CHAT",
+export enum SupportedMesasge{
+    Addchat = "ADD_CHAT",
+    Updatechat = "UPDATE_CHAT",
 }
 
 type MessagePayload = {
-    payload: {
-        roomId: string;
-        message: string;
-        name: string;
-        upvotes: number;
-        chatId: string;
-    }
+    roomId: string;
+    message: string;
+    name: string;
+    upvotes: number;
+    chatId: string;
 }
 
-export type OutgoingMessages = {
-    type: SupportMesasge.Add_chat,
+export type OutgoingMessage = {
+    type: SupportedMesasge.Addchat,
     payload: MessagePayload
 } | {
-    type: SupportMesasge.Update_chat,
+    type: SupportedMesasge.Updatechat,
     payload: Partial<MessagePayload>
 }
