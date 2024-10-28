@@ -1,9 +1,10 @@
 import {connection, server as WebSocketServer} from "websocket";
 import http from 'http';
-import { SupportMesasge } from "./messages";
-import { IncomingMessages } from "./messages"
+import { SupportMesasge } from "../src/messages/IncomingMessages";
+import { IncomingMessages } from "../src/messages/IncomingMessages"
 import { UserManager } from "./UserManager";
 import { inMemoryStore } from "./Store/inMemoryStore";
+import { OutgoingMessages, SupportMesasge as OutgoingSupportedMessage } from "./messages/OutgoingMessages";
 const server = http.createServer(function(request: any, response: any) {
     console.log((new Date()) + ' Received request for ' + request.url);
     response.writeHead(404);
@@ -73,12 +74,37 @@ function messageHandler(ws: connection, message: IncomingMessages){
             console.error("user not found!");
             return
         }
-        store.addChat(payload.userId,user.name, payload.roomId, payload.message)
+        let chat = store.addChat(payload.userId,user.name, payload.roomId, payload.message)
         // TODO: broadCast Logic
+        if(!chat){
+            return;
+        }
+        const OutgoingPayload: OutgoingMessages = {
+            type: OutgoingSupportedMessage.Add_chat,
+            payload:{
+                chatId: chat.id,
+                roomId:payload.roomId,
+                message: payload.message,
+                name:user.name,
+                upvotes: 0
+            }     
+        }
+        userManager.broadcast(payload.roomId,payload.userId,OutgoingPayload)
     }
+
     if(message.type === SupportMesasge.UpvoteMessage)
     {
         const payload = message.payload;
-        store.Upvote(payload.userId, payload.roomId, payload.chatId)
+        store.Upvote(payload.userId, payload.roomId, payload.chatId);
+
+        const OutgoingPayload: OutgoingMessages = {
+            type: OutgoingSupportedMessage.Update_chat,
+            payload:{
+                chatId: payload.chatId,
+                roomId:payload.roomId,
+                upvotes: 0
+            }            
+        }
+        userManager.broadcast(payload.roomId,payload.userId,OutgoingPayload)
     }
 }
